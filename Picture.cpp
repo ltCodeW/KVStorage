@@ -20,6 +20,7 @@ Picture::Picture(const std::string& path, const std::string& picName):
 	readPicture(path);
 	name = picName;
 }
+
 Picture::Picture(const std::string name, unsigned int picSz,const std::string& picData):
 	name(name), data(picData), picSz(picSz) {}
 
@@ -40,10 +41,11 @@ int Picture::readPicture(const std::string& path) {
 	picSz = file.tellg();
 	file.seekg(0);
 
-	char* buffer = new  char[picSz];
+	char* buffer = new char[picSz];
+	int len = 0;
 	file.read(buffer, picSz);
 
-	std::string picDataCode(base64_encode(buffer, picSz));
+	std::string picDataCode(Binary2Base64(buffer, picSz));
 	data.assign(picDataCode.begin(), picDataCode.end());
 
 	delete[] buffer; 
@@ -71,13 +73,16 @@ void Picture::SetPicture(const std::string& cp, unsigned int picSz) {
 const std::string toSerializable(const Picture& pic) {
 	return "_" + std::to_string(pic.GetName().size()) +
 			"_"+ pic.GetName() +
-			"_"+std::to_string(pic.GetPicSz()) + 
-		    "_"+pic.GetData();
+			"_"+ std::to_string(pic.GetData().size()) + 
+		    "_"+pic.GetData()+
+			"_" + std::to_string(pic.GetPicSz());
+			
 }
 
-Picture fromSerializable(const std::string serializeStr){
+Picture fromSerializable(const std::string& serializeStr){
 	unsigned int parseIdx = 1;
 	unsigned int nameSz = 0;
+	//获得图片名长度，根据名字长度获取图片名
 	while (std::isdigit(serializeStr[parseIdx])) {
 		nameSz *= 10;
 		nameSz += (serializeStr[parseIdx] -'0');
@@ -85,18 +90,26 @@ Picture fromSerializable(const std::string serializeStr){
 	}
 	parseIdx++;
 	std::string name = serializeStr.substr(parseIdx, nameSz);
-	unsigned int picSz = 0;
-
+	//获得图片data长度，根据data长度获取图片名
+	unsigned int dataSz = 0;
 	parseIdx += nameSz;
+	parseIdx++;
+	while (std::isdigit(serializeStr[parseIdx])) {
+		dataSz *= 10;
+		dataSz += (serializeStr[parseIdx] - '0');
+		parseIdx++;
+	}
+	parseIdx++;
+	std::string data(serializeStr.substr(parseIdx, dataSz));
+	//获取图片原始大小
+	unsigned int picSz = 0;
+	parseIdx += dataSz;
 	parseIdx++;
 	while (std::isdigit(serializeStr[parseIdx])) {
 		picSz *= 10;
 		picSz += (serializeStr[parseIdx] - '0');
 		parseIdx++;
 	}
-	parseIdx++;
-	std::string data(serializeStr.substr(parseIdx, picSz));
-
 	return Picture(name, picSz, data);
 }
 
@@ -111,9 +124,17 @@ int Picture::ToDisk(const std::string& path) {
 	
 	std::string outFile = path_doc + path_file;
 	std::ofstream outfile(outFile, std::ios::out | std::ios::binary);
+	
+	size_t recDataSize = 0;
+	auto cptr(Base64_2_Binary(data, recDataSize));
+
+	if (recDataSize != picSz) {
+		std::cout << "Error : base64 decode error." << std::endl;
+	}
+
 	if (outfile.is_open()) {
 		outfile.write(reinterpret_cast<const char*>(
-			this->data.c_str()), 
+			cptr.get()),
 			this->GetPicSz());
 		outfile.close();
 		return 1;

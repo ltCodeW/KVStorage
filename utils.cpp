@@ -71,63 +71,50 @@ int GetDocAndFile(const std::string& path,
 
 
 std::string Binary2Base64(const char* binary_data, size_t size) {
-	std::string out;
+	BIO* bio, * b64;
+	BUF_MEM* bufferPtr;
 
-	// 创建 BIO 对象
-	BIO* b64 = BIO_new(BIO_f_base64());
-	BIO* bio = BIO_new(BIO_s_mem());
+	b64 = BIO_new(BIO_f_base64());
+	bio = BIO_new(BIO_s_mem());
 	bio = BIO_push(b64, bio);
 
-	// 执行编码操作
 	BIO_write(bio, binary_data, size);
 	BIO_flush(bio);
 
-	// 获取编码结果
-	char* data = nullptr;
-	int len = BIO_get_mem_data(bio, &data);
-	if (len > 0) {
-		out.assign(data, len - 1);  // 注意去掉结尾的回车符
-	}
+	BIO_get_mem_ptr(bio, &bufferPtr);
+	std::string base64_data(bufferPtr->data, bufferPtr->length);
 
-	// 释放资源
 	BIO_free_all(bio);
 
-	return out;
+	return base64_data;
 }
 
-std::unique_ptr<char> Base64_2_Binary(const std::string& encoded_data, size_t& size) {
+std::shared_ptr<char> Base64_2_Binary(const std::string& encoded_data, size_t& size) {
+	BIO* bio, * b64;
 	size = 0;
-	// 创建 BIO 对象
-	BIO* b64 = BIO_new(BIO_f_base64());
-	BIO* bio = BIO_new_mem_buf(encoded_data.c_str(), encoded_data.size());
-	BIO* bio_dec = BIO_new(BIO_s_mem());
-	if (!b64 || !bio ||!bio_dec) {
-		BIO_free_all(bio);
-		return nullptr;
-	}
 
+	char buffer[BIO_BUF_SIZE];
+	memset(buffer, 0, BIO_BUF_SIZE);
+
+	std::vector<char> alldata;
+
+	b64 = BIO_new(BIO_f_base64());
+	bio = BIO_new_mem_buf(encoded_data.c_str(), encoded_data.size());
 	bio = BIO_push(b64, bio);
-	BIO_set_flags(bio_dec, BIO_FLAGS_BASE64_NO_NL);
-	BIO_write(bio_dec, encoded_data.c_str(), encoded_data.size());
-	BIO_flush(bio_dec);
 
-	// 执行解码操作
-	std::vector<char> read_data;
-	const int read_sz = 1024;
-	char buf[read_sz];
-	int len = 0;
-	while ((len = BIO_read(bio, buf, read_sz)) > 0) {
-		size += len;
-		read_data.insert(read_data.end(), buf, buf + len);
+	int length = 0;
+	while (length = BIO_read(bio, buffer, BIO_BUF_SIZE)) {
+		alldata.insert(alldata.end(), buffer, buffer+length);
+		if (length < BIO_BUF_SIZE) {
+			break;
+		}
 	}
-	if (len < 0) {
-		BIO_free_all(bio);
-		std::cout << "Error reading data" << std::endl;;
-		return nullptr;
-	}
-	// 释放资源
+		
 	BIO_free_all(bio);
-	auto ptr = std::make_unique<char>(read_data.size());
-	memcpy(ptr.get(), read_data.data(), read_data.size());
-	return ptr;
+
+	size = alldata.size();
+	std::unique_ptr<char> p_data(new char[size]);
+	std::copy(alldata.data(), alldata.data() + size, p_data.get());
+	return p_data;
+	
 }

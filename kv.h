@@ -2,6 +2,8 @@
 #pragma once
 #include <filesystem>
 #include <iostream>
+#include <thread>
+#include <mutex>
 
 #include "rapidjson/document.h"
 #include"rapidjson/stringbuffer.h"
@@ -27,11 +29,11 @@ public:
     void AddString(const std::string& key, const std::string& value,unsigned int str_len = 0);
     void AddPicture(const std::string& key, const Picture& value);
     
-    const int GetInt(const std::string& key);
-    const double GetDouble(const std::string& key);
-    const char GetChar(const std::string& key);
-    const std::string GetString(const std::string& key);
-    const Picture GetPicture(const std::string& key);
+    const int GetInt(const std::string& key) const;
+    const double GetDouble(const std::string& key) const;
+    const char GetChar(const std::string& key) const;
+    const std::string GetString(const std::string& key) const;
+    const Picture GetPicture(const std::string& key) const;
 
     int Remove(const std::string& key);
     void Clear();
@@ -44,10 +46,12 @@ public:
 
     
 private:
+    char buffer[BUF_SZ];
+    mutable std::mutex rw_mutex;
+
     void CleanBuffer();
     
-    char buffer[BUF_SZ];
-    const rapidjson::Value& GetValue(const std::string& key);
+    const rapidjson::Value& GetValue(const std::string& key) const;
     rapidjson::Document doc;
     rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
 };

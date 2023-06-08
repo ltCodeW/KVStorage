@@ -2,7 +2,7 @@
 
 #include "kv.h"
 
-
+//初始化rapidjson的doc
 KV::KV() {
 	doc.SetObject();
 }
@@ -11,6 +11,7 @@ KV::~KV() {
 }
 
 void KV::AddInt(const std::string& key, int value) {
+	std::unique_lock<std::mutex> cout_lock(rw_mutex);
 	if (doc.HasMember(key.c_str())) {
 		doc[key.c_str()] = value;
 	}
@@ -20,6 +21,7 @@ void KV::AddInt(const std::string& key, int value) {
 	}
 }
 void KV::AddDouble(const std::string& key, double value) {
+	std::unique_lock<std::mutex> cout_lock(rw_mutex);
 	if (doc.HasMember(key.c_str())) {
 		doc[key.c_str()] = value;
 	}
@@ -27,15 +29,15 @@ void KV::AddDouble(const std::string& key, double value) {
 		rapidjson::Value Vkey(key.c_str(), doc.GetAllocator());
 		doc.AddMember(Vkey, value, allocator);
 	}
-	
 }
 void KV::AddChar(const std::string& key, char value) {
+	//内部调用AddString正式加入doc时才加锁
 	std::string c_str;
 	c_str = value;
 	AddString(key, c_str);
-
 }
 void KV::AddString(const std::string& key, const std::string& value, unsigned int str_len ) {
+	std::unique_lock<std::mutex> cout_lock(rw_mutex);
 	if (str_len == 0) {
 		str_len = value.size();
 	}
@@ -55,13 +57,14 @@ void KV::AddPicture(const std::string& key, const Picture& value) {
 }
 
 
-const rapidjson::Value& KV::GetValue(const std::string& key) {
+const rapidjson::Value& KV::GetValue(const std::string& key) const {
 	return  doc[key.c_str()];
 }
 
 
 
-const int KV::GetInt(const std::string& key) {
+const int KV::GetInt(const std::string& key) const{
+	std::unique_lock<std::mutex> cout_lock(rw_mutex);
 	if (doc.HasMember(key.c_str())) {
 		const rapidjson::Value& value = GetValue(key);
 		return value.GetInt();
@@ -71,7 +74,8 @@ const int KV::GetInt(const std::string& key) {
 		return -1;
 	}
 }
-const double KV::GetDouble(const std::string& key) {
+const double KV::GetDouble(const std::string& key) const {
+	std::unique_lock<std::mutex> cout_lock(rw_mutex);
 	if (doc.HasMember(key.c_str())) {
 		const rapidjson::Value& value = GetValue(key);
 		return value.GetDouble();
@@ -82,7 +86,8 @@ const double KV::GetDouble(const std::string& key) {
 	}
 }
 
-const std::string KV::GetString(const std::string& key) {
+const std::string KV::GetString(const std::string& key) const {
+	std::unique_lock<std::mutex> cout_lock(rw_mutex);
 	if (doc.HasMember(key.c_str())) {
 		const rapidjson::Value& value = doc[key.c_str()];
 		return value.GetString();
@@ -92,7 +97,8 @@ const std::string KV::GetString(const std::string& key) {
 		return "";
 	}
 }
-const char KV::GetChar(const std::string& key) {
+const char KV::GetChar(const std::string& key) const {
+	//调用GetString时，从doc中获取数据时才加锁
 	auto a = GetString(key);;
 	std::string strChr(a);
 	if (strChr.size() > 0) {
@@ -105,7 +111,8 @@ const char KV::GetChar(const std::string& key) {
 }
 
 
-const Picture KV::GetPicture(const std::string& key) {
+const Picture KV::GetPicture(const std::string& key) const {
+	std::unique_lock<std::mutex> cout_lock(rw_mutex);
 	if (doc.HasMember(key.c_str())) {
 		//图片用字符串形式保存、但是不可以用字符串形式读取
 		//图片字符串中会有空字符，返回时被阶段
@@ -122,19 +129,21 @@ const Picture KV::GetPicture(const std::string& key) {
 }
 
 int KV::Remove(const std::string& key) {
+	std::unique_lock<std::mutex> cout_lock(rw_mutex);
 	if (doc.HasMember(key.c_str())) {
 		doc.EraseMember(key.c_str());
 		return 1;
 	}
 	std::cout << "No key " << key << " can be remove";
 	return -1;
-
 }
 void KV::Clear() {
+	std::unique_lock<std::mutex> cout_lock(rw_mutex);
 	doc.RemoveAllMembers();
 }
 
 unsigned int KV::size() {
+	std::unique_lock<std::mutex> cout_lock(rw_mutex);
 	return doc.MemberCount();
 }
 

@@ -120,9 +120,6 @@ TEST(testBase64BinaryConvert, test1) {
 	std::cout << "bianary data size  " << sz << std::endl;
 	EXPECT_EQ(sz, decode_sz);
 	EXPECT_EQ(std::memcmp(binary_data, cptr.get(),sz),  0);
-
-
-
 }
 
 

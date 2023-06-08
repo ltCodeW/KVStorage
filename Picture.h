@@ -24,11 +24,15 @@ public:
     int ToDisk(const std::string& path);
 
 private:
+
     int readPicture(const std::string& path);
+    //图片名
     std::string name;
+    //图片的base64编码数据
     std::string data;
+    //图片原二进制大小
     unsigned int picSz;
 };
 const std::string toSerializable(const Picture& pic) ;
-Picture fromSerializable(const std::string& serializeVec);
+Picture fromSerializable(const std::string& serializeStr);
 
